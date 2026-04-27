@@ -1,0 +1,34 @@
+server:
+  port: 8702
+
+spring:
+  application:
+    name: roc-pdf
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+pdf:
+  template:
+    # 外部挂载目录，替换模板无需重启；本地开发可指向 classpath 外路径
+    path: ${PDF_TEMPLATE_PATH:./pdf-templates}
+  async:
+    core-pool-size: 8
+    max-pool-size: 16
+    queue-capacity: 10000
+    thread-name-prefix: pdf-gen-
+  task:
+    ttl-days: 7
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:qakrOACHdp3DiMuEaxzM}
+  secret-key: ${MINIO_SECRET_KEY:Huxg6qfitMDJnxSUL3N2PF99OEoZHjwV9mWtow1I}
+  bucket: ${MINIO_BUCKET:roc-pdf}
