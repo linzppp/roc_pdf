@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l src/main/java/org/roc/practice/pdf/**/*.java)"
+    ]
+  }
+}

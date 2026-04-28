@@ -29,7 +29,7 @@ import java.util.Map;
 @Component
 public class PdfTemplateEngine {
 
-    private static final String FONT_RESOURCE = "/fonts/NotoSansSC-Regular.ttf";
+    private static final String FONT_RESOURCE = "/fonts/NotoSerifCJKsc-VF.ttf";
 
     @Value("${pdf.template.path}")
     private String templatePath;

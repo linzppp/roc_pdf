@@ -6,9 +6,14 @@ spring:
     name: roc-pdf
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD:123456}
+      sentinel:
+        master: ${REDIS_SENTINEL_MASTER:mymaster}
+        nodes:
+          - ${REDIS_SENTINEL_NODE_1:localhost:26379}
+          - ${REDIS_SENTINEL_NODE_2:localhost:26380}
+          - ${REDIS_SENTINEL_NODE_3:localhost:26381}
+        password: ${REDIS_SENTINEL_PASSWORD:}   # Sentinel 本身的认证密码，若无可留空
       lettuce:
         pool:
           max-active: 8
