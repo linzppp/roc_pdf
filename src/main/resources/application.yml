@@ -37,3 +37,7 @@ minio:
   access-key: ${MINIO_ACCESS_KEY:qakrOACHdp3DiMuEaxzM}
   secret-key: ${MINIO_SECRET_KEY:Huxg6qfitMDJnxSUL3N2PF99OEoZHjwV9mWtow1I}
   bucket: ${MINIO_BUCKET:roc-pdf}
+
+logging:
+  file:
+    path: ${LOG_PATH:./logs}

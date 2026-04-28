@@ -44,7 +44,7 @@ public class SCardPdfGenerator implements PdfGenerator<SCardPdfRequest> {
         fields.put("eduId",      safeStr(req.getEduId()));
         fields.put("levelName",  safeStr(req.getLevelName()));
 
-        log.info("[PDF-DIAG] SCard fields: {}", fields);
+//        log.info("[PDF-DIAG] SCard fields: {}", fields);
         return engine.fill("s-card", fields);
     }
 

@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(wc -l src/main/java/org/roc/practice/pdf/**/*.java)"
+      "Bash(wc -l src/main/java/org/roc/practice/pdf/**/*.java)",
+      "Bash(xargs grep:*)",
+      "Bash(find /c/Users/1/Documents/my_project/roc_pdf/src/main/java -type f -name \"*.java\" -exec wc -l {} \\\\;)"
     ]
   }
 }

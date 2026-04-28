@@ -66,19 +66,20 @@ public class PdfTemplateEngine {
             int successCount = 0, missingCount = 0;
             for (Map.Entry<String, String> entry : fields.entrySet()) {
                 try {
-                    boolean ok = acroFields.setField(entry.getKey(), entry.getValue());
-                    if (ok) {
-                        successCount++;
-                        log.debug("[PDF-DIAG] setField OK: '{}' = '{}'", entry.getKey(), entry.getValue());
-                    } else {
-                        missingCount++;
-                        log.warn("[PDF-DIAG] setField MISS (not in template): '{}'", entry.getKey());
-                    }
+                    acroFields.setField(entry.getKey(), entry.getValue());
+//                    boolean ok = acroFields.setField(entry.getKey(), entry.getValue());
+//                    if (ok) {
+//                        successCount++;
+//                        log.debug("[PDF-DIAG] setField OK: '{}' = '{}'", entry.getKey(), entry.getValue());
+//                    } else {
+//                        missingCount++;
+//                        log.warn("[PDF-DIAG] setField MISS (not in template): '{}'", entry.getKey());
+//                    }
                 } catch (Exception e) {
                     log.warn("[PDF-DIAG] setField ERROR: '{}' -> {}", entry.getKey(), e.getMessage());
                 }
             }
-            log.info("[PDF-DIAG] setField summary: {} success, {} missing", successCount, missingCount);
+//            log.info("[PDF-DIAG] setField summary: {} success, {} missing", successCount, missingCount);
 
             // 扁平化：锁定字段，不允许调用方再次编辑
             stamper.setFormFlattening(true);
