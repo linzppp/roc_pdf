@@ -1,6 +1,7 @@
 package org.roc.practice.pdf.generator.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.roc.practice.pdf.dto.request.SCardPdfRequest;
 import org.roc.practice.pdf.generator.PdfGenerator;
 import org.roc.practice.pdf.template.PdfTemplateEngine;
@@ -16,6 +17,7 @@ import java.util.Objects;
  * <p>模板文件：{pdf.template.path}/scard.pdf
  * <p>新增生成器参照此类实现，无需改动其他代码
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class SCardPdfGenerator implements PdfGenerator<SCardPdfRequest> {
@@ -42,6 +44,7 @@ public class SCardPdfGenerator implements PdfGenerator<SCardPdfRequest> {
         fields.put("eduId",      safeStr(req.getEduId()));
         fields.put("levelName",  safeStr(req.getLevelName()));
 
+        log.info("[PDF-DIAG] SCard fields: {}", fields);
         return engine.fill("s-card", fields);
     }
 

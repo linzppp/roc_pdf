@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * openPDF AcroForm 模板填写引擎
@@ -44,13 +45,13 @@ public class PdfTemplateEngine {
     public byte[] fill(String templateName, Map<String, String> fields) {
         Path templateFile = Paths.get(templatePath, templateName + ".pdf");
         try (InputStream is = Files.newInputStream(templateFile)) {
-            return doFill(is, fields);
+            return doFill(templateName, is, fields);
         } catch (IOException e) {
             throw new RuntimeException("Failed to read template: " + templateFile, e);
         }
     }
 
-    private byte[] doFill(InputStream templateStream, Map<String, String> fields) {
+    private byte[] doFill(String templateName, InputStream templateStream, Map<String, String> fields) {
         PdfReader reader = null;
         PdfStamper stamper = null;
         try {
@@ -58,20 +59,41 @@ public class PdfTemplateEngine {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             stamper = new PdfStamper(reader, baos);
 
+            // 强制重新生成字段外观流（AP stream），否则 flatten 后字段值不可见
+            stamper.setGenerateAppearances(true);
+
             AcroFields acroFields = stamper.getAcroFields();
+
+            // [诊断] 打印模板内全部 AcroForm 字段名，用于与 Generator 的 key 对比
+            Set<String> templateFields = acroFields.getFields().keySet();
+            log.info("[PDF-DIAG] template='{}' has {} AcroForm fields: {}",
+                    templateName, templateFields.size(), templateFields);
+
             loadChineseFont(acroFields);
 
+            int successCount = 0, missingCount = 0;
             for (Map.Entry<String, String> entry : fields.entrySet()) {
                 try {
-                    acroFields.setField(entry.getKey(), entry.getValue());
+                    boolean ok = acroFields.setField(entry.getKey(), entry.getValue());
+                    if (ok) {
+                        successCount++;
+                        log.debug("[PDF-DIAG] setField OK: '{}' = '{}'", entry.getKey(), entry.getValue());
+                    } else {
+                        missingCount++;
+                        log.warn("[PDF-DIAG] setField MISS (not in template): '{}'", entry.getKey());
+                    }
                 } catch (Exception e) {
-                    log.warn("Failed to set field '{}': {}", entry.getKey(), e.getMessage());
+                    log.warn("[PDF-DIAG] setField ERROR: '{}' -> {}", entry.getKey(), e.getMessage());
                 }
             }
+            log.info("[PDF-DIAG] setField summary: {} success, {} missing", successCount, missingCount);
 
             // 扁平化：锁定字段，不允许调用方再次编辑
             stamper.setFormFlattening(true);
             stamper.close();
+            stamper = null;
+
+            log.info("[PDF-DIAG] PDF generation complete, size={} bytes", baos.size());
             return baos.toByteArray();
         } catch (Exception e) {
             throw new RuntimeException("PDF fill failed", e);
@@ -92,12 +114,13 @@ public class PdfTemplateEngine {
     private void loadChineseFont(AcroFields acroFields) {
         try (InputStream fontStream = PdfTemplateEngine.class.getResourceAsStream(FONT_RESOURCE)) {
             if (fontStream == null) {
-                log.warn("Chinese font not found at {}, Chinese characters may not render correctly", FONT_RESOURCE);
+                log.warn("[PDF-DIAG] Chinese font NOT found at classpath:{} — copy fonts/NotoSerifCJKsc-VF.ttf to src/main/resources/fonts/",
+                        FONT_RESOURCE);
                 return;
             }
             byte[] fontBytes = fontStream.readAllBytes();
             BaseFont bf = BaseFont.createFont(
-                    "NotoSansSC-Regular.ttf",
+                    "NotoSerifCJKsc-VF.ttf",
                     BaseFont.IDENTITY_H,
                     BaseFont.EMBEDDED,
                     true,
@@ -105,6 +128,7 @@ public class PdfTemplateEngine {
                     null
             );
             acroFields.addSubstitutionFont(bf);
+            log.info("[PDF-DIAG] Chinese font loaded: resource={}, bytes={}", FONT_RESOURCE, fontBytes.length);
         } catch (Exception e) {
             log.warn("Failed to load Chinese font: {}", e.getMessage());
         }

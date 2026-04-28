@@ -1,6 +1,7 @@
 package org.roc.practice.pdf.generator.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.roc.practice.pdf.dto.request.InvoicePdfRequest;
 import org.roc.practice.pdf.generator.PdfGenerator;
 import org.roc.practice.pdf.template.PdfTemplateEngine;
@@ -16,6 +17,7 @@ import java.util.Objects;
  * <p>模板文件：{pdf.template.path}/invoice.pdf
  * <p>新增生成器参照此类实现，无需改动其他代码
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class InvoicePdfGenerator implements PdfGenerator<InvoicePdfRequest> {
@@ -48,6 +50,7 @@ public class InvoicePdfGenerator implements PdfGenerator<InvoicePdfRequest> {
         fields.put("totalAmount",  safeStr(req.getTotalAmount()));
         fields.put("remark",       safeStr(req.getRemark()));
 
+        log.info("[PDF-DIAG] Invoice fields: {}", fields);
         return engine.fill("invoice", fields);
     }
 
