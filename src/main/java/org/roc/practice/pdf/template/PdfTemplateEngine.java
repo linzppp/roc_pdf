@@ -59,15 +59,7 @@ public class PdfTemplateEngine {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             stamper = new PdfStamper(reader, baos);
 
-            // 强制重新生成字段外观流（AP stream），否则 flatten 后字段值不可见
-            stamper.setGenerateAppearances(true);
-
             AcroFields acroFields = stamper.getAcroFields();
-
-            // [诊断] 打印模板内全部 AcroForm 字段名，用于与 Generator 的 key 对比
-            Set<String> templateFields = acroFields.getFields().keySet();
-            log.info("[PDF-DIAG] template='{}' has {} AcroForm fields: {}",
-                    templateName, templateFields.size(), templateFields);
 
             loadChineseFont(acroFields);
 
