@@ -7,6 +7,8 @@ import org.roc.practice.pdf.generator.PdfGenerator;
 import org.roc.practice.pdf.generator.PdfGeneratorRegistry;
 import org.roc.practice.pdf.storage.StorageService;
 import org.roc.practice.pdf.task.PdfTaskManager;
+import org.roc.practice.pdf.template.PdfTimingRecorder;
+import org.roc.practice.pdf.template.PdfTimingStep;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +26,7 @@ public class PdfAsyncExecutor {
     private final PdfGeneratorRegistry registry;
     private final StorageService storageService;
     private final PdfTaskManager taskManager;
+    private final PdfTimingRecorder timingRecorder;
 
     @Async("pdfTaskExecutor")
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -33,7 +36,10 @@ public class PdfAsyncExecutor {
         try {
             PdfGenerator<T> generator = (PdfGenerator) registry.get(type);
             byte[] pdfBytes = generator.generate(request);
+            long t = System.currentTimeMillis();
             storageService.upload(objectKey, pdfBytes);
+            timingRecorder.record(type, PdfTimingStep.MINIO_UPLOAD, System.currentTimeMillis() - t);
+            timingRecorder.recordQps(type);
             taskManager.updateDone(taskId);
             log.info("PDF generation done: taskId={}, objectKey={}", taskId, objectKey);
         } catch (Exception e) {

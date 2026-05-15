@@ -31,6 +31,11 @@ pdf:
     thread-name-prefix: pdf-gen-
   task:
     ttl-days: 7
+  timing:
+    enabled: ${PDF_TIMING_ENABLED:true}
+    max-entries: ${PDF_TIMING_MAX_ENTRIES:10000}
+  qps:
+    ttl-seconds: ${PDF_QPS_TTL_SECONDS:600}
 
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
