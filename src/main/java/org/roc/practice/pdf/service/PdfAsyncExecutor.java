@@ -47,12 +47,13 @@ public class PdfAsyncExecutor {
             PdfGenerator<T> generator = (PdfGenerator) registry.get(type);
             byte[] pdfBytes = generator.generate(request);
 
-            // PDF 生成完成，pdf-gen 线程至此释放，upload 投递到独立线程池
+            // PDF 生成完成，在投递上传前打点，避免把 upload 排队等待时间算入生成耗时
+            timingRecorder.record(type, PdfTimingStep.TOTAL, System.currentTimeMillis() - startTime);
+            timingRecorder.recordQps(type);
+
+            // pdf-gen 线程至此释放，upload 投递到独立线程池
             CompletableFuture.runAsync(() -> {
                 try {
-                    // 上传完成后统一上报：QPS + 全程总耗时（请求进入 → 上传结束）
-                    timingRecorder.recordQps(type);
-                    timingRecorder.record(type, PdfTimingStep.TOTAL, System.currentTimeMillis() - startTime);
                     storageService.upload(objectKey, pdfBytes);
                     taskManager.updateDone(taskId);
                     log.info("Upload done: taskId={}, objectKey={}", taskId, objectKey);
