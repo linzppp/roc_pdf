@@ -30,10 +30,33 @@ public class PdfTemplateEngine {
     private static final String FONT_RESOURCE = "/fonts/NotoSerifCJKsc-VF.ttf";
 
     private final PdfTemplateCache templateCache;
-    private final PdfTimingRecorder timingRecorder;
 
-    /** 字体在启动时预加载并常驻内存，BaseFont 只读，多线程安全 */
-    private BaseFont cachedFont;
+    /**
+     * 字体字节在启动时从 classpath 加载并常驻内存。
+     * BaseFont 实例通过 ThreadLocal 缓存：每线程解析一次字体文件，后续复用同一实例。
+     * 既避免每次请求重复解析 CJK 大字体（CPU 密集型），又因实例不跨线程共享，
+     * 消除 TrueTypeFontUnicode.convertToBytes 的 synchronized 跨线程竞争。
+     */
+    private byte[] cachedFontBytes;
+
+    private final ThreadLocal<BaseFont> threadLocalFont = ThreadLocal.withInitial(() -> {
+        if (cachedFontBytes == null) {
+            return null;
+        }
+        try {
+            return BaseFont.createFont(
+                    "NotoSerifCJKsc-VF.ttf",
+                    BaseFont.IDENTITY_H,
+                    BaseFont.EMBEDDED,
+                    false,
+                    cachedFontBytes,
+                    null
+            );
+        } catch (Exception e) {
+            log.warn("[PDF-DIAG] Failed to create thread-local font: {}", e.getMessage());
+            return null;
+        }
+    });
 
     @PostConstruct
     private void initFont() {
@@ -42,16 +65,8 @@ public class PdfTemplateEngine {
                 log.warn("[PDF-CACHE] Chinese font NOT found at classpath:{}", FONT_RESOURCE);
                 return;
             }
-            byte[] fontBytes = fontStream.readAllBytes();
-            cachedFont = BaseFont.createFont(
-                    "NotoSerifCJKsc-VF.ttf",
-                    BaseFont.IDENTITY_H,
-                    BaseFont.EMBEDDED,
-                    true,
-                    fontBytes,
-                    null
-            );
-            log.info("[PDF-CACHE] Chinese font pre-loaded: {} bytes", fontBytes.length);
+            cachedFontBytes = fontStream.readAllBytes();
+            log.info("[PDF-CACHE] Chinese font bytes pre-loaded: {} bytes", cachedFontBytes.length);
         } catch (Exception e) {
             log.warn("[PDF-CACHE] Failed to pre-load Chinese font: {}", e.getMessage());
         }
@@ -65,13 +80,11 @@ public class PdfTemplateEngine {
      * @return 已填写并扁平化（不可编辑）的 PDF 字节
      */
     public byte[] fill(String templateName, Map<String, String> fields) {
-        long t0 = System.currentTimeMillis();
         byte[] templateBytes = templateCache.get(templateName);
-        timingRecorder.record(templateName, PdfTimingStep.TEMPLATE_LOAD, System.currentTimeMillis() - t0);
-        return doFill(templateName, templateBytes, fields);
+        return doFill(templateBytes, fields);
     }
 
-    private byte[] doFill(String templateName, byte[] templateBytes, Map<String, String> fields) {
+    private byte[] doFill(byte[] templateBytes, Map<String, String> fields) {
         PdfReader reader = null;
         PdfStamper stamper = null;
         try {
@@ -80,12 +93,8 @@ public class PdfTemplateEngine {
             stamper = new PdfStamper(reader, baos);
 
             AcroFields acroFields = stamper.getAcroFields();
-
-            long t1 = System.currentTimeMillis();
             loadChineseFont(acroFields);
-            timingRecorder.record(templateName, PdfTimingStep.FONT_SETUP, System.currentTimeMillis() - t1);
 
-            long t2 = System.currentTimeMillis();
             for (Map.Entry<String, String> entry : fields.entrySet()) {
                 try {
                     acroFields.setField(entry.getKey(), entry.getValue());
@@ -93,9 +102,7 @@ public class PdfTemplateEngine {
                     log.warn("[PDF-DIAG] setField ERROR: '{}' -> {}", entry.getKey(), e.getMessage());
                 }
             }
-            timingRecorder.record(templateName, PdfTimingStep.FIELD_FILL, System.currentTimeMillis() - t2);
 
-            // 扁平化：锁定字段，不允许调用方再次编辑
             stamper.setFormFlattening(true);
             stamper.close();
             stamper = null;
@@ -115,13 +122,16 @@ public class PdfTemplateEngine {
     }
 
     /**
-     * 将预加载的字体注入 AcroFields，仅做引用传递，无 I/O 或解析开销
+     * 从 ThreadLocal 缓存获取 BaseFont 实例并注入 AcroFields。
+     * 每线程首次调用时解析字体文件，后续请求复用同一实例，消除重复解析开销。
+     * 实例不跨线程共享，TrueTypeFontUnicode.convertToBytes 的 synchronized 不产生竞争。
      */
     private void loadChineseFont(AcroFields acroFields) {
-        if (cachedFont == null) {
+        BaseFont bf = threadLocalFont.get();
+        if (bf == null) {
             log.warn("[PDF-DIAG] Chinese font not available, skipping substitution");
             return;
         }
-        acroFields.addSubstitutionFont(cachedFont);
+        acroFields.addSubstitutionFont(bf);
     }
 }

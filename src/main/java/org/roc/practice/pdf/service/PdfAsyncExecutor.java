@@ -9,8 +9,13 @@ import org.roc.practice.pdf.storage.StorageService;
 import org.roc.practice.pdf.task.PdfTaskManager;
 import org.roc.practice.pdf.template.PdfTimingRecorder;
 import org.roc.practice.pdf.template.PdfTimingStep;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * PDF 异步执行器
@@ -28,20 +33,36 @@ public class PdfAsyncExecutor {
     private final PdfTaskManager taskManager;
     private final PdfTimingRecorder timingRecorder;
 
+    @Autowired
+    @Qualifier("pdfUploadExecutor")
+    private Executor uploadExecutor;
+
     @Async("pdfTaskExecutor")
     @SuppressWarnings({"unchecked", "rawtypes"})
     public <T> void execute(String type, T request, String taskId, String objectKey) {
         log.info("Starting PDF generation: type={}, taskId={}", type, taskId);
+        final long startTime = System.currentTimeMillis();
         taskManager.updateStatus(taskId, TaskStatus.PROCESSING);
         try {
             PdfGenerator<T> generator = (PdfGenerator) registry.get(type);
             byte[] pdfBytes = generator.generate(request);
-            long t = System.currentTimeMillis();
-            storageService.upload(objectKey, pdfBytes);
-            timingRecorder.record(type, PdfTimingStep.MINIO_UPLOAD, System.currentTimeMillis() - t);
-            timingRecorder.recordQps(type);
-            taskManager.updateDone(taskId);
-            log.info("PDF generation done: taskId={}, objectKey={}", taskId, objectKey);
+
+            // PDF 生成完成，pdf-gen 线程至此释放，upload 投递到独立线程池
+            CompletableFuture.runAsync(() -> {
+                try {
+                    // 上传完成后统一上报：QPS + 全程总耗时（请求进入 → 上传结束）
+                    timingRecorder.recordQps(type);
+                    timingRecorder.record(type, PdfTimingStep.TOTAL, System.currentTimeMillis() - startTime);
+                    storageService.upload(objectKey, pdfBytes);
+                    taskManager.updateDone(taskId);
+                    log.info("Upload done: taskId={}, objectKey={}", taskId, objectKey);
+                } catch (Exception e) {
+                    log.error("Upload failed: taskId={}", taskId, e);
+                    taskManager.updateFailed(taskId, e.getMessage());
+                }
+            }, uploadExecutor);
+
+            log.info("PDF generation done, upload submitted: taskId={}", taskId);
         } catch (Exception e) {
             log.error("PDF generation failed: taskId={}", taskId, e);
             taskManager.updateFailed(taskId, e.getMessage());

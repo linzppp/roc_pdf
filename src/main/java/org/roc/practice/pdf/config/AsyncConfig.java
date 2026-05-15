@@ -23,6 +23,9 @@ public class AsyncConfig {
     @Value("${pdf.async.thread-name-prefix:pdf-gen-}")
     private String threadNamePrefix;
 
+    @Value("${pdf.async.upload-pool-size:8}")
+    private int uploadPoolSize;
+
     @Bean("pdfTaskExecutor")
     public Executor pdfTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -32,6 +35,19 @@ public class AsyncConfig {
         executor.setThreadNamePrefix(threadNamePrefix);
         // 队列满时直接拒绝，由调用方重试，防止线程堆积
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+        executor.initialize();
+        return executor;
+    }
+
+    @Bean("pdfUploadExecutor")
+    public Executor pdfUploadExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(uploadPoolSize);
+        executor.setMaxPoolSize(uploadPoolSize);
+        executor.setQueueCapacity(10000);
+        executor.setThreadNamePrefix("pdf-upload-");
+        // 队列满时由 pdf-gen 线程自己执行上传，防止丢任务
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
         return executor;
     }

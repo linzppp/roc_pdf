@@ -8,10 +8,7 @@ package org.roc.practice.pdf.template;
  */
 public enum PdfTimingStep {
 
-    TEMPLATE_LOAD("template_load"),
-    FONT_SETUP("font_setup"),
-    FIELD_FILL("field_fill"),
-    MINIO_UPLOAD("minio_upload");
+    TOTAL("total");
 
     private final String key;
 

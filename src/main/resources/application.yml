@@ -29,6 +29,7 @@ pdf:
     max-pool-size: 16
     queue-capacity: 10000
     thread-name-prefix: pdf-gen-
+    upload-pool-size: 8
   task:
     ttl-days: 7
   timing:
