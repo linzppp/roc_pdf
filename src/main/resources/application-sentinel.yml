@@ -1,0 +1,12 @@
+# Redis Sentinel 集群配置
+# 启动方式: --spring.profiles.active=sentinel
+spring:
+  data:
+    redis:
+      sentinel:
+        master: ${REDIS_SENTINEL_MASTER:mymaster}
+        nodes:
+          - ${REDIS_SENTINEL_NODE_1:localhost:26379}
+          - ${REDIS_SENTINEL_NODE_2:localhost:26380}
+          - ${REDIS_SENTINEL_NODE_3:localhost:26381}
+        password: ${REDIS_SENTINEL_PASSWORD:}
