@@ -32,6 +32,7 @@ public class PdfTemplateEngine {
     private static final String FONT_RESOURCE = "/fonts/NotoSerifCJKsc-VF.ttf";
 
     private final PdfTemplateCache templateCache;
+    private final int initC = 180*1024;
 
     /**
      * 字体字节在启动时从 classpath 加载并常驻内存。
@@ -55,7 +56,7 @@ public class PdfTemplateEngine {
         }
         try {
             return BaseFont.createFont(
-                    "NotoSerifCJKsc-VF.ttf",
+                    "noto-sans-sc-chinese-simplified-400-normal.ttf",
                     BaseFont.IDENTITY_H,
                     BaseFont.EMBEDDED,
                     false,
@@ -117,7 +118,7 @@ public class PdfTemplateEngine {
                 }
             });
             reader = new PdfReader(proto);
-            ByteArrayOutputStream baos = new ByteArrayOutputStream(200*1024);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream(initC);
             stamper = new PdfStamper(reader, baos);
 
             AcroFields acroFields = stamper.getAcroFields();
