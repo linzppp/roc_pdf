@@ -90,8 +90,7 @@ public class PdfTemplateEngine {
      * @return 已填写并扁平化（不可编辑）的 PDF 字节
      */
     public byte[] fill(String templateName, Map<String, String> fields) {
-        byte[] templateBytes = templateCache.get(templateName);
-        return doFill(templateName, templateBytes, fields);
+        return doFill(templateName, fields);
     }
 
     /**
@@ -105,21 +104,20 @@ public class PdfTemplateEngine {
         }
     }
 
-    private byte[] doFill(String templateName, byte[] templateBytes, Map<String, String> fields) {
+    private byte[] doFill(String templateName,  Map<String, String> fields) {
         PdfReader reader = null;
         PdfStamper stamper = null;
         try {
-            // 从 prototype 拷贝：prototype 已解析 xref/页面树，拷贝构造无需重新解析
             PdfReader proto = protoReaderCache.computeIfAbsent(templateName, name -> {
                 try {
                     log.info("[PDF-CACHE] Creating proto PdfReader for template '{}'", name);
-                    return new PdfReader(templateBytes);
+                    return new PdfReader(templateCache.get(templateName));
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to init proto PdfReader for: " + name, e);
                 }
             });
             reader = new PdfReader(proto);
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ByteArrayOutputStream baos = new ByteArrayOutputStream(200*1024);
             stamper = new PdfStamper(reader, baos);
 
             AcroFields acroFields = stamper.getAcroFields();
@@ -147,6 +145,7 @@ public class PdfTemplateEngine {
             }
             if (reader != null) {
                 reader.close();
+                reader = null;
             }
         }
     }
